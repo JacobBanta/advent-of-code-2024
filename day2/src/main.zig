@@ -1,7 +1,8 @@
 const std = @import("std");
 
 var counter = std.atomic.Value(usize).init(0);
-var correct = std.atomic.Value(usize).init(0);
+var correct1 = std.atomic.Value(usize).init(0);
+var correct2 = std.atomic.Value(usize).init(0);
 
 pub fn main() !void {
     var it = std.mem.split(u8, @embedFile("input"), "\n");
@@ -16,7 +17,8 @@ pub fn main() !void {
     while (counter.fetchAdd(0, .monotonic) != 0) {
         std.time.sleep(100 * std.time.ns_per_ms);
     }
-    std.debug.print("part 1: {d}\n", .{correct.fetchAdd(0, .monotonic)});
+    std.debug.print("part 1: {d}\n", .{correct1.fetchAdd(0, .monotonic)});
+    std.debug.print("part 2: {d}\n", .{correct2.fetchAdd(0, .monotonic)});
 }
 fn func(line: []const u8) void {
     defer _ = counter.fetchSub(1, .acq_rel);
@@ -25,21 +27,36 @@ fn func(line: []const u8) void {
     while (it.next()) |x| {
         if (x.len == 0) continue;
         list.append(std.fmt.parseUnsigned(u32, x, 0) catch return) catch {
-            _ = correct.fetchAdd(1, .monotonic);
             return;
         };
     }
-    const order = std.math.order(list.items[0], list.items[1]);
-    for (0..list.items.len - 1) |index| {
-        const newOrder = std.math.order(list.items[index], list.items[index + 1]);
-        if (order != newOrder) return;
-        if (order == .eq) return;
-        if (order == .gt) {
-            if (list.items[index] - list.items[index + 1] > 3) return;
-        }
-        if (order == .lt) {
-            if (list.items[index + 1] - list.items[index] > 3) return;
+    if (isCorrect(list.items)) {
+        _ = correct1.fetchAdd(1, .monotonic);
+        _ = correct2.fetchAdd(1, .monotonic);
+    } else {
+        for (0..list.items.len) |index| {
+            var newList = list.clone() catch return;
+            _ = newList.orderedRemove(index);
+            if (isCorrect(newList.items)) {
+                _ = correct2.fetchAdd(1, .monotonic);
+                return;
+            }
         }
     }
-    _ = correct.fetchAdd(1, .monotonic);
+}
+
+fn isCorrect(items: []const u32) bool {
+    const order = std.math.order(items[0], items[1]);
+    for (0..items.len - 1) |index| {
+        const newOrder = std.math.order(items[index], items[index + 1]);
+        if (order != newOrder) return false;
+        if (order == .eq) return false;
+        if (order == .gt) {
+            if (items[index] - items[index + 1] > 3) return false;
+        }
+        if (order == .lt) {
+            if (items[index + 1] - items[index] > 3) return false;
+        }
+    }
+    return true;
 }
