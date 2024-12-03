@@ -5,12 +5,30 @@ const input = @embedFile("input");
 
 pub fn main() !void {
     var re = try Regex.compile(std.heap.page_allocator, "mul\\([0-9]{0,3},[0-9]{0,3}\\)");
+    var off = try Regex.compile(std.heap.page_allocator, "don't\\(\\)");
+    var on = try Regex.compile(std.heap.page_allocator, "do\\(\\)");
     var counter: usize = 0;
+    var counter2: usize = 0;
+    var active: bool = true;
     for (0..input.len) |n| {
-        if (try re.match(input[n..]))
+        if (!active) {
+            if (try on.match(input[n..])) {
+                active = true;
+            }
+        } else {
+            if (try off.match(input[n..])) {
+                active = false;
+                continue;
+            }
+        }
+        if (try re.match(input[n..])) {
             counter += try func(input[n..]);
+            if (active)
+                counter2 += try func(input[n..]);
+        }
     }
     std.debug.print("part 1: {d}\n", .{counter});
+    std.debug.print("part 2: {d}\n", .{counter2});
 }
 
 fn func(line: []const u8) !usize {
